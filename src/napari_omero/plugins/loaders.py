@@ -248,6 +248,9 @@ def load_rois(
     conn: BlitzGateway, image: ImageWrapper, load_points: bool
 ) -> list[LayerData]:
     """Load ROIs from an OMERO image and formats their coordinates and metadata."""
+    from napari import current_viewer
+    import pandas as pd
+
     roi_service = conn.getRoiService()
     result = roi_service.findByImage(image.getId(), None)
     img_id = image.getId()
