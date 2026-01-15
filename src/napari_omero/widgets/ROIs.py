@@ -57,10 +57,13 @@ def omero_roi_manager() -> Container:
                     existing_layer=viewer.layers[shapes_meta["name"]]
                     )
         if points_meta:
-            points_layer = napari.layers.Points(
-                points_coords, **points_meta
-            )
-            layers_to_add.append(points_layer)
+            if points_meta["name"] not in viewer.layers:
+                viewer.add_points(points_coords, **points_meta, feature_defaults=feature_defaults)
+            else:
+                update_local_layer(
+                    incoming_layer=(points_coords, points_meta, 'points'),
+                    existing_layer=viewer.layers[points_meta["name"]]
+                    )
 
 
     @save_button.clicked.connect
