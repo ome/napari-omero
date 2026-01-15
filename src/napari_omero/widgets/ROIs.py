@@ -24,6 +24,7 @@ def omero_roi_manager() -> Container:
 
     @load_button.clicked.connect
     def _load_rois_from_omero() -> None:
+        import pandas as pd
         viewer = napari.viewer.current_viewer()
         image_layer = omero_image_combobox.value
 
@@ -47,10 +48,14 @@ def omero_roi_manager() -> Container:
             show_info(f"No ROIs or points found for OMERO image id {img_id}.")
             return
         
-
+        # set feature defaults so that adding a new ROI in napari does not add incorrect ids
+        feature_defaults = pd.DataFrame({key: [None] for key in shapes_meta['features'].keys()})
+        feature_defaults['comment'] = ''
+        
+        # Create or update local data layers
         if shapes_meta:
             if shapes_meta["name"] not in viewer.layers:
-                viewer.add_shapes(shapes_coords, **shapes_meta)
+                viewer.add_shapes(shapes_coords, **shapes_meta, feature_defaults=feature_defaults)
             else:
                 update_local_layer(
                     incoming_layer=(shapes_coords, shapes_meta, 'shapes'),
