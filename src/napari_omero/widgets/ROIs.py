@@ -46,10 +46,22 @@ def omero_roi_manager() -> Container:
         if points_meta is None and shapes_meta is None:
             show_info(f"No ROIs or points found for OMERO image id {img_id}.")
             return
+        
+
         if shapes_meta:
-            viewer.add_shapes(shapes_coords, **shapes_meta)
+            if shapes_meta["name"] not in viewer.layers:
+                viewer.add_shapes(shapes_coords, **shapes_meta)
+            else:
+                update_local_layer(
+                    incoming_layer=(shapes_coords, shapes_meta, 'shapes'),
+                    existing_layer=viewer.layers[shapes_meta["name"]]
+                    )
         if points_meta:
-            viewer.add_points(points_coords, **points_meta)
+            points_layer = napari.layers.Points(
+                points_coords, **points_meta
+            )
+            layers_to_add.append(points_layer)
+
 
     @save_button.clicked.connect
     def _save_rois_to_omero() -> None:
@@ -80,3 +92,45 @@ def omero_roi_manager() -> Container:
 
     container = Container(widgets=[omero_image_combobox, load_button, save_button])
     return container
+
+def update_local_layer(
+        incoming_layer: "napari.types.LayerDataTuple",
+        existing_layer: "napari.layers.Layer",) -> None:
+    """Compare two napari layers and update existing layer if different."""
+    import pandas as pd
+
+    # Check for ROI ids that have been removed on the remote but are still
+    # present in the existing layer
+    removed_rois_idx = [
+        idx for idx, roi in enumerate(existing_layer.features['shape_id'].values)
+        if roi not in incoming_layer[1]['features']['shape_id']
+        ]
+    
+    if removed_rois_idx:
+        existing_layer.selected_data = set(removed_rois_idx)
+        existing_layer.remove_selected()
+
+    # Now, check for ROI ids that have been added on the remote but are not
+    # present in the existing layer
+    added_rois_idxs = [
+        idx for idx, roi in enumerate(incoming_layer[1]['features']['shape_id'])
+        if roi not in existing_layer.features['shape_id'].values
+        ]
+    
+    if added_rois_idxs:
+        for roi_idx in added_rois_idxs:
+            new_data = incoming_layer[0][roi_idx]
+            existing_layer.add(
+                new_data,
+                shape_type=incoming_layer[1]['shape_type'][roi_idx],
+                edge_width=incoming_layer[1]['edge_width'][roi_idx],
+                edge_color=incoming_layer[1]['edge_color'][roi_idx],
+                face_color=incoming_layer[1]['face_color'][roi_idx],)
+
+            for key in incoming_layer[1]['features'].keys():
+                existing_layer.features.loc[
+                    len(existing_layer.data) - 1, key
+                    ] = incoming_layer[1]['features'][key][roi_idx]
+
+
+    show_info(f"ROI layer already exists locally.\nAdded {len(added_rois_idxs)} ROIs, removed {len(removed_rois_idx)} ROIs.")
