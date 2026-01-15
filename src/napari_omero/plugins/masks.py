@@ -25,16 +25,25 @@ def save_labels(layer, image: ImageWrapper) -> list[RoiI]:
     Shape Mask created for each Z/T plane of
     the mask.
     """
+    import pandas as pd
     # for each label value, check if we have any masks
     masks_4d = np.asarray(layer.data)
     rois = []
     for v in range(1, masks_4d.max() + 1):
-        hits = masks_4d.flatten() == v
-        if np.any(hits):
-            rgba = layer.get_color(v)
-            rgba = [round(r * 255) for r in rgba]
-            rgba[3] = layer.opacity * 256
-            rois.append(save_label(masks_4d == v, image, rgba))
+        # Check if ROI already has an OMERO id
+        # If it has one, it already exists on the remote
+        roi_id_local = layer.features.iloc[v]["roi_id"]
+        shape_id_local = layer.features.iloc[v]["shape_id"]
+
+        if pd.isna(shape_id_local) and pd.isna(roi_id_local):
+            hits = masks_4d.flatten() == v
+            if np.any(hits):
+                rgba = layer.get_color(v)
+                rgba = [round(r * 255) for r in rgba]
+                rgba[3] = layer.opacity * 256
+                rois.append(save_label(masks_4d == v, image, rgba))
+        else:
+            return []
     return rois
 
 

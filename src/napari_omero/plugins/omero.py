@@ -167,27 +167,71 @@ def save_rois(viewer, image):
     >>> from napari_omero import *
     >>> save_rois(viewer, omero_image).
     """
+    import pandas as pd
     conn = image._conn
     group_id = image.getDetails().getGroup().getId()
     conn.SERVICE_OPTS.setOmeroGroup(group_id)
 
+    # Check if there are existing ROIs on the remote
+    # that do not exist locally and remove them on the remote
+    roi_service = conn.getRoiService()
+    roi_ids = roi_service.findByImage(image.getId(), None).rois
+
+    # Loop through all ROIs
+    remote_roi_ids = []
+    remote_shape_ids = []
+
+    for roi in roi_ids:
+        roi_id = roi.getId().getValue()
+        # Loop through all shapes in each ROI
+        for shape in roi.copyShapes():
+            shape_id = shape.getId().getValue()
+            remote_shape_ids.append(shape_id)
+            remote_roi_ids.append(roi_id)
+
     for layer in viewer.layers:
         if type(layer) is points_layer:
-            for p in layer.data:
-                point = create_omero_point(p)
-                roi = create_roi(conn, image.id, [point])
-                print(f"Created ROI: {roi.id.val}")
+            for idx, p in enumerate(layer.data):
+
+                # Check if ROI already has an OMERO id
+                # If it has one, it already exists on the remote
+                roi_id_local = layer.features.iloc[idx]["roi_id"]
+                shape_id_local = layer.features.iloc[idx]["shape_id"]
+                if pd.isna(shape_id_local) and pd.isna(roi_id_local):
+                    point = create_omero_point(p)
+                    roi = create_roi(conn, image.id, [point])
+                    print(f"Created ROI: {roi.id.val}")
+
+            # remove any remote shapes that are not present locally
+            # TODO: Add a safeguard here that prevents deleting all remote shapes
+            shape_ids = [s for s in remote_shape_ids if not s in layer.features['shape_id'].values]
+            if shape_ids:
+                conn.deleteObjects("Shape", shape_ids)
+                
         elif type(layer) is shapes_layer:
             if len(layer.data) == 0 or len(layer.shape_type) == 0:
                 continue
             shape_types = layer.shape_type
             if isinstance(shape_types, str):
                 shape_types = [layer.shape_type for _ in range(len(layer.data))]
-            for shape_type, data in zip(shape_types, layer.data):
-                shape = create_omero_shape(shape_type, data)
-                if shape is not None:
-                    roi = create_roi(conn, image.id, [shape])
-                    print(f"Created ROI: {roi.id.val}")
+            for idx, (shape_type, data) in enumerate(zip(shape_types, layer.data)):
+
+                # Check if ROI already has an OMERO id
+                # If it has one, it already exists on the remote
+                roi_id_local = layer.features.iloc[idx]["roi_id"]
+                shape_id_local = layer.features.iloc[idx]["shape_id"]
+                if pd.isna(shape_id_local) and pd.isna(roi_id_local):
+                    shape = create_omero_shape(shape_type, data)
+                    if shape is not None:
+                        roi = create_roi(conn, image.id, [shape])
+                        print(f"Created ROI: {roi.id.val}")
+
+            # remove any remote shapes that are not present locally
+            # TODO: Add a safeguard here that prevents deleting all remote shapes
+            shape_ids = [s for s in remote_shape_ids if not s in layer.features['shape_id'].values]
+            if shape_ids:
+                conn.deleteObjects("Shape", shape_ids)
+
         elif type(layer) is labels_layer:
             print("Saving Labels...")
             save_labels(layer, image)

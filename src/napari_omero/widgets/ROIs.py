@@ -115,8 +115,10 @@ def update_local_layer(
         ]
     
     if removed_rois_idx:
+        feature_defaults = existing_layer.feature_defaults.copy()
         existing_layer.selected_data = set(removed_rois_idx)
         existing_layer.remove_selected()
+        existing_layer.feature_defaults = feature_defaults
 
     # Now, check for ROI ids that have been added on the remote but are not
     # present in the existing layer
