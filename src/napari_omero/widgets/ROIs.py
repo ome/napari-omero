@@ -1,8 +1,8 @@
 import warnings
 
 import napari.viewer
-from magicgui.widgets import Container, PushButton, create_widget
-from napari.layers import Image, Labels
+from magicgui.widgets import Container, PushButton, create_widget, ComboBox
+from napari.layers import Image, Labels, Layer
 from napari.utils.notifications import show_info
 
 from napari_omero.plugins.loaders import load_rois
@@ -21,6 +21,18 @@ def omero_roi_manager() -> Container:
     omero_image_combobox = create_widget(label="OMERO Image", annotation=Image)
     load_button = PushButton(text="Load Annotations from OMERO")
     save_button = PushButton(text="Upload Annotations to OMERO")
+    mode_combobox = ComboBox(
+        choices=["Replace", "Append", "Update"],
+        label="ROI Load Mode",
+        value="Update",
+        tooltip=
+            "How to handle ROIs when loading from/to OMERO:\n"
+            "- Replace: Remove existing local (download) or remote (upload) ROIs "
+            "and replace with the new ones. CAUTION: Deletes existing ROIs.\n"
+            "- Append: Simply add the new ROIs to existing ones.\n"
+            "- Update: Compare local and remote ROIs. "
+            "Add new ROIs and remove deleted ones on the local/remote."
+        )
 
     @load_button.clicked.connect
     def _load_rois_from_omero() -> None:
@@ -43,32 +55,43 @@ def omero_roi_manager() -> Container:
         shapes_coords, shapes_meta, _ = load_rois(
             gateway.conn, image_wrapper, load_points=False
         )[0]
-
-        if points_meta is None and shapes_meta is None:
-            show_info(f"No ROIs or points found for OMERO image id {img_id}.")
-            return
         
-        # set feature defaults so that adding a new ROI in napari does not add incorrect ids
-        feature_defaults = pd.DataFrame({key: [None] for key in shapes_meta['features'].keys()})
-        feature_defaults['comment'] = ''
-        
-        # Create or update local data layers
-        if shapes_meta:
-            if shapes_meta["name"] not in viewer.layers:
-                viewer.add_shapes(shapes_coords, **shapes_meta, feature_defaults=feature_defaults)
-            else:
-                update_local_layer(
-                    incoming_layer=(shapes_coords, shapes_meta, 'shapes'),
-                    existing_layer=viewer.layers[shapes_meta["name"]]
-                    )
+        incoming_layers = []
         if points_meta:
-            if points_meta["name"] not in viewer.layers:
-                viewer.add_points(points_coords, **points_meta, feature_defaults=feature_defaults)
-            else:
-                update_local_layer(
-                    incoming_layer=(points_coords, points_meta, 'points'),
-                    existing_layer=viewer.layers[points_meta["name"]]
-                    )
+            incoming_layers.append(
+                (points_coords, points_meta, 'points')
+            )
+        if shapes_meta:
+            incoming_layers.append(
+                (shapes_coords, shapes_meta, 'shapes')
+            )
+
+        if len(incoming_layers) == 0:
+            show_info("No ROIs found on the selected OMERO image.")
+            return
+
+        # update feature defaults
+        for layer in incoming_layers:
+            # set feature defaults so that adding a new ROI in napari does not add incorrect ids
+            feature_defaults = pd.DataFrame({key: [None] for key in layer[1]['features'].keys()})
+            feature_defaults['comment'] = ''
+            layer[1]['feature_defaults'] = feature_defaults
+        
+        for layer in incoming_layers:
+            if mode_combobox.value == "Append":
+                viewer.add_layer(Layer.create(*layer))
+            elif mode_combobox.value == "Update":
+                if layer[1]["name"] not in viewer.layers:
+                    viewer.add_layer(Layer.create(*layer))
+                else:
+                    update_local_layer(
+                        incoming_layer=layer,
+                        existing_layer=viewer.layers[layer[1]["name"]]
+                        )
+            elif mode_combobox.value == "Replace":
+                if layer[1]["name"] in viewer.layers:
+                    viewer.layers.remove(viewer.layers[layer[1]["name"]])
+                viewer.add_layer(Layer.create(*layer))
 
 
     @save_button.clicked.connect
@@ -93,12 +116,19 @@ def omero_roi_manager() -> Container:
         )
 
         viewer = napari.viewer.current_viewer()
-        save_rois(viewer=viewer, image=image_wrapper)
+        save_rois(viewer=viewer, image=image_wrapper, mode=mode_combobox.value)
 
         trg = image_wrapper.getName()
         show_info(f"All annotation layers uploaded to OMERO image id {image_id}: {trg}")
 
-    container = Container(widgets=[omero_image_combobox, load_button, save_button])
+    container = Container(
+        widgets=[
+            omero_image_combobox,
+            load_button,
+            save_button,
+            mode_combobox,
+        ],
+    )
     return container
 
 def update_local_layer(
