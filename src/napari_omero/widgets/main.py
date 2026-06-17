@@ -137,11 +137,26 @@ class OMEROWidget(QWidget):
         with signals_blocked(self.group_combo):
             self.group_combo.clear()
             self.group_combo.addItem("All", None)
-            for group in self.gateway.conn.getGroupsMemberOf():
+            for group in self._list_groups():
                 self.group_combo.addItem(group.getName(), group.getId())
         if self._group_wrapper is not None:
             self.group_combo.setCurrentText(self._group_wrapper.getName())
             self._on_group_changed()
+
+    def _list_groups(self):
+        """Return the selectable groups for the current user.
+
+        Admins can read every group, so list them all (minus the internal
+        "user"/"guest" system groups). Regular users only see the groups they
+        are a member of.
+        """
+        conn = self.gateway.conn
+        if conn.isAdmin():
+            roles = conn.getAdminService().getSecurityRoles()
+            hidden = {roles.userGroupId, roles.guestGroupId}
+            groups = [g for g in conn.listGroups() if g.getId() not in hidden]
+            return sorted(groups, key=lambda g: g.getName().lower())
+        return list(conn.getGroupsMemberOf())
 
     def _update_user_combo(self):
         # List the group owners and other members
@@ -167,12 +182,16 @@ class OMEROWidget(QWidget):
 
     def _on_group_changed(self):
         group_id = self.group_combo.currentData()
-        if group_id is None:
-            group_id = -1
         conn = self.gateway.conn
-        conn.SERVICE_OPTS.setOmeroGroup(group_id)
-        group = conn.getAdminService().getGroup(group_id)
-        self._group_wrapper = ExperimenterGroupWrapper(conn, group)
+        if group_id is None:
+            # "All" selected: -1 is the cross-group sentinel for SERVICE_OPTS
+            # but is not a real group id, so don't try to fetch it (see #86).
+            conn.SERVICE_OPTS.setOmeroGroup(-1)
+            self._group_wrapper = None
+        else:
+            conn.SERVICE_OPTS.setOmeroGroup(group_id)
+            group = conn.getAdminService().getGroup(group_id)
+            self._group_wrapper = ExperimenterGroupWrapper(conn, group)
         self._update_user_combo()
 
     def _on_user_changed(self):
