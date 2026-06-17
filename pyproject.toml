@@ -161,7 +161,10 @@ filterwarnings = [
     "ignore:'U' mode is deprecated",
     "ignore:Please import PackageMetadata from 'npe2'",
     "ignore:`np.bool8` is a deprecated alias for `np.bool_`:DeprecationWarning:skimage",
-    "ignore:Pickle, copy, and deepcopy support will be removed from itertools in Python 3.14:DeprecationWarning"
+    "ignore:Pickle, copy, and deepcopy support will be removed from itertools in Python 3.14:DeprecationWarning",
+    # napari's EventedModel still uses pydantic's deprecated `json_encoders`
+    # (napari/utils/events/evented_model.py); we can't fix it upstream from here.
+    "ignore:`json_encoders` is deprecated:DeprecationWarning"
 ]
 
 
