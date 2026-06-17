@@ -1,21 +1,11 @@
-# This code is derived from the conftest.py file from the ezomero library,
-# which is licensed under the GNU General Public License v2.0 as published by
-# the Free Software Foundation.
+# This code is derived from the conftest.py file in the ezomero project:
+#   https://github.com/erickmartins/ezomero
+#   Copyright (c) 2020-2025, Erick Ratamero, Dave Mellert, and contributors
 #
-# Copyright (c) 2020-2025, Erick Ratamero, Dave Mellert, and contributors
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# For the original code, please see:
-# https://github.com/erickmartins/ezomero
+# ezomero is distributed under the GNU General Public License, version 2
+# (GPL-2.0). napari-omero is GPL-2.0-or-later, which is compatible. This file is
+# distributed under the same terms; it comes with NO WARRANTY, to the extent
+# permitted by law. See the GNU General Public License for more details.
 #
 # Note that these fixtures are only used for the OMERO server tests.
 import os
@@ -35,7 +25,7 @@ DEFAULT_OMERO_PASS = "omero"
 DEFAULT_OMERO_HOST = "localhost"
 DEFAULT_OMERO_WEB_HOST = "http://localhost:4080"
 DEFAULT_OMERO_PORT = "4064"
-DEFAULT_OMERO_SECURE = 1
+DEFAULT_OMERO_SECURE = True
 
 # [[group, permissions], ...]
 GROUPS_TO_CREATE = [["test_group_1", "read-only"], ["test_group_2", "read-only"]]
@@ -77,7 +67,7 @@ def pytest_addoption(parser):
     parser.addoption(
         "--omero-secure",
         action="store",
-        default=bool(os.environ.get("OMERO_SECURE", DEFAULT_OMERO_SECURE)),
+        default=os.environ.get("OMERO_SECURE", DEFAULT_OMERO_SECURE),
     )
 
 
@@ -89,7 +79,14 @@ def omero_params(request):
     host = request.config.getoption("--omero-host")
     web_host = request.config.getoption("--omero-web-host")
     port = request.config.getoption("--omero-port")
-    secure = request.config.getoption("--omero-secure")
+    secure_opt = request.config.getoption("--omero-secure")
+    # the option default is a real bool, but an OMERO_SECURE env var arrives as
+    # a string ("0"/"false" should mean False), so coerce explicitly.
+    secure = (
+        secure_opt
+        if isinstance(secure_opt, bool)
+        else str(secure_opt).strip().lower() in ("1", "true", "yes")
+    )
     return (user, password, host, web_host, port, secure)
 
 
@@ -205,7 +202,7 @@ def users_groups(conn, omero_params):
 
 @pytest.fixture(scope="session")
 def conn(omero_params):
-    user, password, host, web_host, port, secure = omero_params
+    user, password, host, _web_host, port, secure = omero_params
     conn = BlitzGateway(user, password, host=host, port=port, secure=secure)
     conn.connect()
     yield conn
