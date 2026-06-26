@@ -30,19 +30,17 @@ class ThumbGrid(QListWidget):
 
         self._current_item = item
 
-        dataset = None
         if item.isDataset():
-            dataset = item
+            self.set_dataset(item)
+            self.show()
         elif item.isImage():
-            dataset = item.parent()
+            # Only highlight the thumbnail if its dataset's thumbnails are
+            # already loaded (i.e. the dataset was previously selected).
+            # Selecting an image shouldn't trigger thumbnail generation
+            if item.parent() == self._current_dataset:
+                self.select_image()
         else:
             self._current_dataset = None
-
-        if dataset:
-            self.set_dataset(dataset)
-            self.show()
-        if item.isImage():
-            self.select_image()
 
     def select_image(self):
         if self._current_item is not None:
