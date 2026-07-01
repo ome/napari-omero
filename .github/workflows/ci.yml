@@ -63,19 +63,64 @@ jobs:
           python -m pip install .[test]
           python -m pip install ${{ matrix.backend }}
 
-      - name: Test
-        run: pytest --color=yes --cov=napari_omero --cov-report=xml
+      - name: Test (local)
+        run: pytest ./tests/local --color=yes --cov=napari_omero --cov-report=xml
 
 #      - name: Codecov
 #        uses: codecov/codecov-action@v5
 #        env:
 #          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
+  # Integration tests against a real, containerized OMERO server.
+  # Kept as a separate job (single OS + Python) so the server stack is only
+  # started once, rather than across the full test matrix.
+  test-server:
+    name: server tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: "latest"
+          python-version: "3.12"
+
+      # the server test for the browser widget needs a Qt backend + display
+      - uses: pyvista/setup-headless-display-action@v4
+        with:
+          qt: true
+
+      - name: Install dependencies
+        run: |
+          conda install omero-py
+          python -m pip install --upgrade pip
+          python -m pip install .[test]
+          python -m pip install PyQt5
+
+      - name: Set up OMERO server
+        run: |
+          # omero-test-infra is used only to stand up a server stack (compose up);
+          # Pinned to latest commit: Dec 2025
+          git clone https://github.com/ome/omero-test-infra .omero
+          git -C .omero checkout c8a0015b0ce72ee0a49e6968af33de10ea00bc77
+          # Bind the server/web ports to fixed host ports so the host-side tests
+          # can reach localhost:4064 / :4080 (compose defaults to random ports).
+          # see also: https://github.com/ome/omero-test-infra/issues/77
+          echo 'OMERO_SERVER_SSL=4064:' >> .omero/.env
+          echo 'OMERO_WEB_PORT=4080:' >> .omero/.env
+          .omero/compose up -d
+          .omero/wait-on-login
+
+      - name: Test (server)
+        run: pytest ./tests/server --color=yes --cov=napari_omero --cov-report=xml
+
   deploy:
     # this will run when you have tagged a commit, starting with "v*"
     # and requires that you have put your twine API key in your
-    needs: [test]
-    if: success() && startsWith(github.ref, 'refs/tags/') && github.repository == 'tlambert03/napari-omero'
+    needs: [test, test-server]
+    if: success() && startsWith(github.ref, 'refs/tags/') && github.repository == 'ome/napari-omero'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
