@@ -189,6 +189,12 @@ def get_pyramid_lazy(image: ImageWrapper) -> list[da.Array]:
     image._prepareRenderingEngine()
     tile_w, tile_h = image._re.getTileSize()
 
+    # RawPixelsStore.getTile returns raw big-endian bytes; unlike the high-level
+    # PixelsWrapper.getTiles (omero/gateway/__init__.py), which decodes for us,
+    # the raw store does not, so we decode here: read with big-endian byte order
+    # and the pixels' real dtype, then hand napari a native-order array.
+    be_dtype = np.dtype(dtype).newbyteorder(">")
+
     def get_tile(tile_name):
         """tile_name is 'level,z,t,x,y,w,h'."""
         level, z, c, t, x, y, w, h = (int(n) for n in tile_name.split(","))
@@ -197,9 +203,8 @@ def get_pyramid_lazy(image: ImageWrapper) -> list[da.Array]:
             pix.setPixelsId(pix_id, False, {"omero.group": "-1"})
             pix.setResolutionLevel(level)
             tile = pix.getTile(z, c, t, x, y, w, h)
-            tile = np.frombuffer(tile, dtype=np.uint8)
-            tile = tile.reshape((h, w))
-            return tile
+            tile = np.frombuffer(tile, dtype=be_dtype).reshape((h, w))
+            return tile.astype(dtype, copy=False)
 
     lazy_reader = delayed(get_tile)
 
