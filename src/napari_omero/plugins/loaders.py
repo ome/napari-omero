@@ -1,6 +1,5 @@
 from contextlib import contextmanager
 from math import ceil
-from typing import Optional
 
 import dask.array as da
 import numpy as np
@@ -19,7 +18,7 @@ from napari_omero.widgets import QGateWay
 
 # @timer
 def get_gateway(
-    path: str, host: Optional[str] = None, force_reconnect: bool = False
+    path: str, host: str | None = None, force_reconnect: bool = False
 ) -> BlitzGateway:
     gateway = QGateWay()
     if host:
@@ -69,9 +68,7 @@ def omero_url_reader(path: str) -> list[LayerData]:
 
 
 # @timer
-def omero_proxy_reader(
-    path: str, proxy_obj: Optional[IObject] = None
-) -> list[LayerData]:
+def omero_proxy_reader(path: str, proxy_obj: IObject | None = None) -> list[LayerData]:
     gateway = get_gateway(path)
 
     if proxy_obj.__class__.__name__.startswith("Image"):
@@ -388,7 +385,7 @@ def omero_color_to_hex(color_val) -> str:
     return hexa_decimal
 
 
-def parse_omero_shape(shape) -> Optional[LayerData]:
+def parse_omero_shape(shape) -> LayerData | None:
     """Convert an OMERO shape into a Napari-compatible format."""
     shape_type = shape.__class__.__name__
     if shape_type == "RectangleI":

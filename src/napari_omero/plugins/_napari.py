@@ -1,13 +1,13 @@
 import os
+from collections.abc import Callable
 from functools import partial
-from typing import Callable, Optional, Union
 
 from napari_omero.utils import get_proxy_obj, parse_omero_url
 
 from .loaders import omero_proxy_reader, omero_url_reader
 
 
-def napari_get_reader(path: Union[str, list[str]]) -> Optional[Callable]:
+def napari_get_reader(path: str | list[str]) -> Callable | None:
     if isinstance(path, str):
         if parse_omero_url(path):
             return omero_url_reader

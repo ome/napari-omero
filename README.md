@@ -1,10 +1,10 @@
 # napari-omero
 
-[![License](https://img.shields.io/pypi/l/napari-omero.svg?color=green)](https://github.com/tlambert03/napari-omero/raw/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/napari-omero.svg?color=green)](https://github.com/ome/napari-omero/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-omero.svg?color=green)](https://pypi.org/project/napari-omero)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-omero.svg?color=green)](https://python.org)
-[![CI](https://github.com/tlambert03/napari-omero/actions/workflows/ci.yml/badge.svg)](https://github.com/tlambert03/napari-omero/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/tlambert03/napari-omero/branch/main/graph/badge.svg)](https://codecov.io/gh/tlambert03/napari-omero)
+[![CI](https://github.com/ome/napari-omero/actions/workflows/ci.yml/badge.svg)](https://github.com/ome/napari-omero/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/ome/napari-omero/branch/main/graph/badge.svg)](https://codecov.io/gh/ome/napari-omero)
 [![conda-forge](https://img.shields.io/conda/vn/conda-forge/napari-omero)](https://anaconda.org/conda-forge/napari-omero)
 
 This package provides interoperability between the
@@ -15,7 +15,7 @@ viewer for python.
 It provides a GUI interface for browsing an OMERO instance from within napari,
 as well as command line interface extensions for both OMERO and napari CLIs.
 
-![demo](https://github.com/tlambert03/napari-omero/blob/main/demo.gif?raw=true)
+![demo](https://github.com/ome/napari-omero/blob/main/demo.gif?raw=true)
 
 ## Features
 
@@ -92,30 +92,62 @@ omero napari view Image:1
 
 ## installation
 
-While this package supports anything above python 3.9,
-in practice, python support is limited by `omero-py` and `zeroc-ice`,
-compatibility, which is limited to python <=3.12 at the time of writing.
+`napari-omero` requires Python 3.10 or newer (note: current napari releases
+require 3.11+). It depends on `omero-py`, which needs `zeroc-ice` 3.6.
+`zeroc-ice` is not available as a prebuilt wheel on PyPI, so the easiest way to
+get it is from conda-forge.
 
-### from conda
+### from conda-forge (conda or pixi)
 
-It's easiest to install `omero-py` from conda, so the recommended procedure
-is to install everything from conda, using the `conda-forge` channel.
-For example, to install the plugin, napari, and the default Qt backend, use:
-
-```sh
-conda install -c conda-forge napari-omero pyqt
-```
-
-### from pip
-
-`napari-omero` itself can be installed from pip, but you will still need
-`omero-py`
+Everything, including `omero-py` and `zeroc-ice`, is available from the
+`conda-forge` channel. To install the plugin, napari and a Qt backend into an
+existing conda environment:
 
 ```sh
-conda create -n omero -c conda-forge python=3.10 omero-py
-conda activate omero
-pip install napari-omero[all]  # the [all] here is the same as `napari[all]`
+conda install -c conda-forge napari-omero pyside6
 ```
+
+Or, with [pixi](https://pixi.sh), install it as a standalone app. This puts the
+`napari-omero` and `napari` commands on your PATH, and you don't have to manage
+an environment:
+
+```sh
+pixi global install napari-omero --with pyside6 --expose napari-omero --expose napari
+```
+
+Upgrade later with `pixi global update napari-omero`.
+
+### from PyPI (uv or pip)
+
+`napari-omero` is on PyPI, but `zeroc-ice` (needed by `omero-py`) is only
+published there as source code, which is hard to build. [Glencoe Software
+provides prebuilt `zeroc-ice` wheels](https://www.glencoesoftware.com/blog/2023/12/08/ice-binaries-for-omero.html) for **Python 3.10 to 3.12**. Point the
+installer at the link for your platform:
+
+| Platform | `--find-links` URL |
+| --- | --- |
+| macOS (Intel and Apple Silicon) | `https://github.com/glencoesoftware/zeroc-ice-py-macos-universal2/releases/expanded_assets/20240131` |
+| Linux x86_64 | `https://github.com/glencoesoftware/zeroc-ice-py-linux-x86_64/releases/expanded_assets/20240202` |
+| Linux aarch64 | `https://github.com/glencoesoftware/zeroc-ice-py-linux-aarch64/releases/expanded_assets/20240620` |
+| Windows x86_64 | `https://github.com/glencoesoftware/zeroc-ice-py-win-x86_64/releases/expanded_assets/20240325` |
+
+With [uv](https://docs.astral.sh/uv/), install it as a standalone app. This puts
+the `napari-omero` and `napari` commands on your PATH:
+
+```sh
+uv tool install --python 3.12 "napari-omero[all]" --with-executables-from napari \
+    --find-links <URL for your platform>
+```
+
+Upgrade later with `uv tool upgrade napari-omero`.
+
+Or install it into an existing Python 3.10–3.12 environment with pip:
+
+```sh
+pip install "napari-omero[all]" --find-links <URL for your platform>
+```
+
+`[all]` is the same as `napari[all]`, which includes a Qt backend (PyQt6).
 
 ## issues
 
@@ -123,7 +155,7 @@ pip install napari-omero[all]  # the [all] here is the same as `napari[all]`
 | --- | -------------------------------------------------------------------- |
 
 - experimental & definitely still buggy!  [Bug
-  reports](https://github.com/tlambert03/napari-omero/issues/new) are welcome!
+  reports](https://github.com/ome/napari-omero/issues/new) are welcome!
 - remote loading can be very slow still... though this is not strictly an issue
   of this plugin.  Datasets are wrapped as delayed dask stacks, and remote data
   fetching time can be significant.  Enabling [asynchronous
@@ -140,31 +172,54 @@ pip install napari-omero[all]  # the [all] here is the same as `napari[all]`
 
 ## contributing
 
-Contributions are welcome!  To get setup with a development environment:
+Contributions are welcome! First clone the repo:
 
 ```bash
-# clone this repo:
-git clone https://github.com/tlambert03/napari-omero.git
-# change into the new directory
+git clone https://github.com/ome/napari-omero.git
 cd napari-omero
-# create conda environment
-conda env create -n napari-omero python=3.10 omero-py
-# activate the new env
-conda activate napari-omero
+```
 
-# install in editable mode with dev dependencies
-pip install -e ".[dev]"      # quotes are needed on zsh
+The development environment is configured in `pyproject.toml` for both
+[pixi](https://pixi.sh) and [uv](https://docs.astral.sh/uv/). Either way you get
+an editable install with the test dependencies and a Qt backend: PyQt6 with uv
+(as PyPI users get) and PySide6 with pixi (as conda-forge users get).
+
+**pixi** gets `omero-py` and `zeroc-ice` from conda-forge, so it
+works with any supported Python version:
+
+```bash
+pixi run test             # creates the environment on first use, then runs pytest
+pixi run napari           # or: pixi shell
+```
+
+**uv** uses [Glencoe Software's prebuilt `zeroc-ice`
+wheels](https://github.com/glencoesoftware?q=zeroc-ice-py), which exist for
+Python 3.10 to 3.12 only, so the repo pins 3.12 in `.python-version`:
+
+```bash
+uv run pytest             # creates .venv on first use
+uv run napari
+```
+
+**conda + pip** also still works:
+
+```bash
+conda create -n napari-omero -c conda-forge python=3.12 omero-py
+conda activate napari-omero
+pip install -e ".[dev]"   # quotes are needed on zsh
 ```
 
 To maintain good code quality, this repo uses
 [ruff](https://github.com/astral-sh/ruff),
 [mypy](https://github.com/python/mypy).
 
-To enforce code quality when you commit code, you can install pre-commit
+The checks are configured in `.pre-commit-config.yaml` and run with
+[prek](https://github.com/j178/prek). It is included in the uv and pixi dev environments. To run the
+checks automatically on every commit:
 
 ```bash
-# install pre-commit which will run code checks prior to commits
-pre-commit install
+uv run prek install       # or: pixi run prek install
+uv run prek run --all-files   # run all checks once by hand
 ```
 
 The original OMERO data loader and CLI extension was created by [Will

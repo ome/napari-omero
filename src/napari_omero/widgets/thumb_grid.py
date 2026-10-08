@@ -1,5 +1,3 @@
-from typing import Optional
-
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtGui import QIcon, QImage, QPixmap
 from qtpy.QtWidgets import QListWidget, QListWidgetItem
@@ -20,8 +18,8 @@ class ThumbGrid(QListWidget):
         self.loader = None
         self.setStyleSheet("QListView {font-size: 8px; background: black};")
         self.setSpacing(4)
-        self._current_dataset: Optional[OMEROTreeItem] = None
-        self._current_item: Optional[OMEROTreeItem] = None
+        self._current_dataset: OMEROTreeItem | None = None
+        self._current_item: OMEROTreeItem | None = None
         self._item_map: dict[str, QListWidgetItem] = {}
 
     def set_item(self, item: OMEROTreeItem):

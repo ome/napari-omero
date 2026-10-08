@@ -6,100 +6,81 @@ on:
     tags: ["v*"] # Push events to matching v*, i.e. v1.0, v20.15.10
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "0 0 1 * *" # monthly, to catch breakage from new napari/omero-py releases
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Tests run against the latest dependencies, like a fresh user install. 
+# Every platform is tested once per tool, because each tool gets
+# zeroc-ice/Qt binaries from a different place; the Python range is covered on
+# Linux only. 
+# uv: Glencoe zeroc-ice wheels (py3.10-3.12) 
+# pixi: conda-forge (py3.13+).
 jobs:
-  check-manifest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - run: pipx run check-manifest
-
-  test:
-    name: ${{ matrix.platform }} ${{ matrix.python-version }}
-    runs-on: ${{ matrix.platform }}
-    defaults:
-      run:
-        shell: bash -l {0}
+  test-uv:
+    name: uv ${{ matrix.os }} py${{ matrix.python }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-15-intel, macos-latest, windows-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
-        backend: [PyQt5]
-        exclude:
-          - platform: macos-15-intel
-            python-version: "3.10"
-          - platform: macos-15-intel
-            python-version: "3.11"
-          - platform: macos-latest
-            python-version: "3.10"
-          - platform: macos-latest
-            python-version: "3.11"
-          - platform: windows-latest
-            python-version: "3.10"
-          - platform: windows-latest
-            python-version: "3.11"
-
+        include:
+          - { os: ubuntu-latest, python: "3.10" } # oldest Python -> older napari
+          - { os: ubuntu-latest, python: "3.12" }
+          - { os: macos-latest, python: "3.12" }
+          - { os: windows-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v7
-      - uses: conda-incubator/setup-miniconda@v4
-        with:
-          miniforge-version: "latest"
-          python-version: ${{ matrix.python-version }}
-
       - uses: pyvista/setup-headless-display-action@v4
         with:
           qt: true
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - run: uv run --upgrade pytest --color=yes
 
-      - name: Install dependencies
-        run: |
-          conda install omero-py
-          python -m pip install --upgrade pip
-          python -m pip install .[test]
-          python -m pip install ${{ matrix.backend }}
-
-      - name: Test
-        run: pytest --color=yes --cov=napari_omero --cov-report=xml
-
-#      - name: Codecov
-#        uses: codecov/codecov-action@v5
-#        env:
-#          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+  test-pixi:
+    name: pixi ${{ matrix.os }} ${{ matrix.env }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, env: py313 }
+          - { os: ubuntu-latest, env: py314 }
+          - { os: macos-latest, env: py314 }
+          - { os: windows-latest, env: py314 }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pyvista/setup-headless-display-action@v4
+        with:
+          qt: true
+      - uses: prefix-dev/setup-pixi@v0.10.2
+        with:
+          run-install: false
+      - run: pixi update -e ${{ matrix.env }} # latest deps instead of pixi.lock
+      - run: pixi run -e ${{ matrix.env }} test --color=yes
 
   deploy:
-    # this will run when you have tagged a commit, starting with "v*"
-    # and requires that you have put your twine API key in your
-    needs: [test]
-    if: success() && startsWith(github.ref, 'refs/tags/') && github.repository == 'tlambert03/napari-omero'
+    # runs when a tag starting with "v" is pushed; publishes via PyPI trusted publishing
+    needs: [test-uv, test-pixi]
+    if: success() && startsWith(github.ref, 'refs/tags/') && github.repository == 'ome/napari-omero'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: write
-
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-
-      - name: 🐍 Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.x"
-
-      - name: 👷 Build
-        run: |
-          python -m pip install build
-          python -m build
-
-      - name: 🚢 Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-
+      - uses: astral-sh/setup-uv@v10
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
       - uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
-          files: './dist/*'
+          files: "./dist/*"

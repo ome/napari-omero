@@ -183,7 +183,7 @@ def save_rois(viewer, image):
             shape_types = layer.shape_type
             if isinstance(shape_types, str):
                 shape_types = [layer.shape_type for _ in range(len(layer.data))]
-            for shape_type, data in zip(shape_types, layer.data):
+            for shape_type, data in zip(shape_types, layer.data, strict=False):
                 shape = create_omero_shape(shape_type, data)
                 if shape is not None:
                     roi = create_roi(conn, image.id, [shape])

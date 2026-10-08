@@ -1,6 +1,6 @@
 import atexit
-from collections.abc import Generator
-from typing import TYPE_CHECKING, Callable, Optional
+from collections.abc import Callable, Generator
+from typing import TYPE_CHECKING
 
 import omero.gateway
 from omero.clients import BaseClient
@@ -22,18 +22,18 @@ class QGateWay(QObject):
     error = Signal(object)
 
     # singletons
-    _conn: Optional[BlitzGateway] = None
-    _host: Optional[str] = None
-    _port: Optional[str] = None
-    _user: Optional[str] = None
+    _conn: BlitzGateway | None = None
+    _host: str | None = None
+    _port: str | None = None
+    _user: str | None = None
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.store = SessionsStore()
         self.destroyed.connect(self.close)
         atexit.register(self.close)
-        self.worker: Optional[WorkerBase] = None
-        self._next_worker: Optional[WorkerBase] = None
+        self.worker: WorkerBase | None = None
+        self._next_worker: WorkerBase | None = None
 
     @property
     def conn(self):
@@ -117,7 +117,7 @@ class QGateWay(QObject):
     def try_restore_session(self):
         return self._submit(self._try_restore_session)
 
-    def _try_restore_session(self) -> Optional[SessionStats]:
+    def _try_restore_session(self) -> SessionStats | None:
         host, username, uuid, port = self.get_current()
         host = self.host or host
         username = self.user or username

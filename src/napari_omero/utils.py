@@ -2,7 +2,6 @@ import functools
 import logging
 import re
 import time
-from typing import Optional
 
 import numpy as np
 from omero.cli import ProxyStringType
@@ -66,12 +65,12 @@ omero_object_pattern = re.compile(
 )
 
 
-def parse_omero_url(url: str) -> Optional[dict[str, str]]:
+def parse_omero_url(url: str) -> dict[str, str] | None:
     match = omero_url_pattern.search(url)
     return match.groupdict() if match else None
 
 
-def get_proxy_obj(path: str) -> Optional[IObject]:
+def get_proxy_obj(path: str) -> IObject | None:
     """If path ends with e.g. Image:ID return proxy obj."""
     if path.startswith("omero://"):
         path = path[8:]

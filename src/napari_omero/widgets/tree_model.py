@@ -1,5 +1,5 @@
 import itertools
-from typing import Any, Optional
+from typing import Any
 
 from omero.gateway import BlitzObjectWrapper, _DatasetWrapper, _ImageWrapper
 from qtpy.QtCore import QModelIndex, Qt
@@ -45,7 +45,7 @@ class OMEROTreeItem(QStandardItem):
         return bool(self.child_type and self.n_children > 0)
 
     @property
-    def child_type(self) -> Optional[str]:
+    def child_type(self) -> str | None:
         kls = self.wrapper.CHILD_WRAPPER_CLASS or ""
         kls = kls if isinstance(kls, str) else kls.__name__
         return kls.lstrip("_").replace("Wrapper", "") if kls else None
@@ -55,7 +55,7 @@ class OMEROTreeItem(QStandardItem):
         return self.wrapper.OMERO_CLASS
 
     @property
-    def parent_type(self) -> Optional[str]:
+    def parent_type(self) -> str | None:
         kls = self.wrapper.PARENT_WRAPPER_CLASS or ""
         kls = kls if isinstance(kls, str) else kls.__name__
         return kls.lstrip("_").replace("Wrapper", "") if kls else None

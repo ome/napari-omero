@@ -1,6 +1,6 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling>=1.27", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
@@ -10,19 +10,23 @@ source = "vcs"
 only-include = ["src"]
 sources = ["src"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [".python-version"]
+
 # https://peps.python.org/pep-0621/
 [project]
 name = "napari-omero"
 dynamic = ["version"]
 description = "napari/OMERO interoperability"
 readme = "README.md"
-requires-python = ">=3.9"
-license = { text = "GPL-2.0-or-later" }
+requires-python = ">=3.10"
+license = "GPL-2.0-or-later"
+license-files = ["LICENSE"]
 authors = [
     { name = "Talley Lambert", email = "talley.lambert@gmail.com" },
     { name = "Will Moore", email = "w.moore@dundee.ac.uk" },
     { name = "Johannes Soltwedel", email = "johannes_richard.soltwedel@tu-dresden.de" },
-    { name = "Peter Sobolewski" },
+    { name = "Peter Sobolewski", email = "peter.sobolewski@jax.org" },
 ]
 keywords = ["OMERO.CLI", "plugin", "napari", "napari-plugin"]
 classifiers = [
@@ -33,21 +37,20 @@ classifiers = [
     "Intended Audience :: Education",
     "Intended Audience :: End Users/Desktop",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
     "Natural Language :: English",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Topic :: Scientific/Engineering :: Information Analysis",
     "Topic :: Scientific/Engineering :: Visualization",
     "Topic :: Scientific/Engineering",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
-    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
     "Typing :: Typed",
 ]
 # add your package dependencies here
@@ -79,14 +82,15 @@ dev = [
     "ipython",
     "mypy",
     "pdbpp",
-    "pre-commit",
+    "prek",
     "rich",
     "ruff",
 ]
 
 [project.urls]
-homepage = "https://github.com/tlambert03/napari-omero"
-repository = "https://github.com/tlambert03/napari-omero"
+homepage = "https://github.com/ome/napari-omero"
+repository = "https://github.com/ome/napari-omero"
+issues = "https://github.com/ome/napari-omero/issues"
 
 # Entry points
 # https://peps.python.org/pep-0621/#entry-points
@@ -97,10 +101,106 @@ napari-omero = "napari_omero.__main__:main"
 [project.entry-points."napari.manifest"]
 napari-omero = "napari_omero:napari.yaml"
 
+# ---------------------------------------------------------------------------
+# Development environments.
+#
+# `zeroc-ice` (needed by omero-py) is sdist-only on PyPI and hard to build, so:
+#   - pixi gets omero-py + zeroc-ice from conda-forge (any supported Python);
+#   - uv gets Glencoe Software's prebuilt wheels (Python 3.10-3.12 only).
+
+# PEP 735 dependency groups (uv installs the "dev" group by default)
+[dependency-groups]
+dev = [
+    # listed directly so that the [tool.uv.sources] entry below applies
+    "zeroc-ice==3.6.5; python_version < '3.13'",
+    "napari-omero[test]",
+    "napari[pyqt6]", # same Qt as PyPI napari[all] installs, with napari's Qt version exclusions
+    "prek", # runs the hooks in .pre-commit-config.yaml
+    "ruff",
+    "mypy",
+]
+
+[tool.uv]
+# Only lock for what Glencoe publishes zeroc-ice wheels for (cp310-cp312 on the
+# platforms below; see also .python-version). PySide6 is wheels-only too.
+environments = [
+    "python_version >= '3.10' and python_version < '3.13' and sys_platform == 'darwin'",
+    "python_version >= '3.10' and python_version < '3.13' and sys_platform == 'win32' and platform_machine == 'AMD64'",
+    "python_version >= '3.10' and python_version < '3.13' and sys_platform == 'linux' and platform_machine == 'x86_64'",
+    "python_version >= '3.10' and python_version < '3.13' and sys_platform == 'linux' and platform_machine == 'aarch64'",
+]
+# precompile at install: avoids zeroc-ice's SyntaxWarnings tripping pytest's
+# filterwarnings=error on first import, and speeds up napari start-up
+compile-bytecode = true
+
+[tool.uv.sources]
+zeroc-ice = [
+    { index = "zeroc-ice-macos", marker = "sys_platform == 'darwin'" },
+    { index = "zeroc-ice-linux-x86_64", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+    { index = "zeroc-ice-linux-aarch64", marker = "sys_platform == 'linux' and platform_machine == 'aarch64'" },
+    { index = "zeroc-ice-windows", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "zeroc-ice-macos"
+url = "https://github.com/glencoesoftware/zeroc-ice-py-macos-universal2/releases/expanded_assets/20240131"
+format = "flat"
+explicit = true
+
+[[tool.uv.index]]
+name = "zeroc-ice-linux-x86_64"
+url = "https://github.com/glencoesoftware/zeroc-ice-py-linux-x86_64/releases/expanded_assets/20240202"
+format = "flat"
+explicit = true
+
+[[tool.uv.index]]
+name = "zeroc-ice-linux-aarch64"
+url = "https://github.com/glencoesoftware/zeroc-ice-py-linux-aarch64/releases/expanded_assets/20240620"
+format = "flat"
+explicit = true
+
+[[tool.uv.index]]
+name = "zeroc-ice-windows"
+url = "https://github.com/glencoesoftware/zeroc-ice-py-win-x86_64/releases/expanded_assets/20240325"
+format = "flat"
+explicit = true
+
+# brings zeroc-ice 3.6.x from conda-forge
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "linux-aarch64", "win-64"]
+
+[tool.pixi.dependencies]
+python = ">=3.10"
+omero-py = "*"
+pyside6 = "*" # same Qt binding the README recommends for conda-forge
+prek = "*" # runs the hooks in .pre-commit-config.yaml
+ruff = "*"
+mypy = "*"
+
+[tool.pixi.pypi-dependencies]
+napari-omero = { path = ".", editable = true }
+
+# per-Python environments used by CI (uv covers 3.10-3.12)
+[tool.pixi.feature.py313.dependencies]
+python = "3.13.*"
+
+[tool.pixi.feature.py314]
+platforms = ["osx-arm64", "linux-64", "linux-aarch64", "win-64"] # no osx-64 zeroc-ice for 3.14
+dependencies = { python = "3.14.*" }
+
+[tool.pixi.environments]
+default = { features = ["test"], solve-group = "default" }
+py313 = ["py313", "test"]
+py314 = ["py314", "test"]
+
+[tool.pixi.tasks]
+test = "pytest"
+
 # https://docs.astral.sh/ruff
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 src = ["src"]
 
 # https://docs.astral.sh/ruff/rules
@@ -140,7 +240,7 @@ skip-magic-trailing-comma = false # default is false
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
 [tool.mypy]
-files = "src/**/"
+files = ["src"]
 strict = false
 check_untyped_defs = true
 ignore_missing_imports = true
@@ -164,7 +264,10 @@ filterwarnings = [
     "ignore:Pickle, copy, and deepcopy support will be removed from itertools in Python 3.14:DeprecationWarning",
     # napari's EventedModel still uses pydantic's deprecated `json_encoders`
     # (napari/utils/events/evented_model.py); we can't fix it upstream from here.
-    "ignore:`json_encoders` is deprecated:DeprecationWarning"
+    "ignore:`json_encoders` is deprecated:DeprecationWarning",
+    # zeroc-ice's generated modules contain invalid escape sequences; Python
+    # warns when compiling them on first import (wording differs by version)
+    "ignore:.*invalid escape sequence:SyntaxWarning",
 ]
 
 
@@ -181,15 +284,3 @@ exclude_lines = [
 ]
 [tool.coverage.run]
 source = ["src"]
-
-# https://github.com/mgedmin/check-manifest#configuration
-# add files that you want check-manifest to explicitly ignore here
-# (files that are in the repo but shouldn't go in the package)
-[tool.check-manifest]
-ignore = [
-    ".github_changelog_generator",
-    ".pre-commit-config.yaml",
-    ".ruff_cache/**/*",
-    "setup.py",
-    "tests/**/*",
-]

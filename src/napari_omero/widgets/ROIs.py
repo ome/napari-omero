@@ -10,7 +10,6 @@ from napari_omero.plugins.loaders import load_rois
 from napari_omero.plugins.omero import save_rois
 from napari_omero.utils import lookup_obj
 from napari_omero.widgets.gateway import QGateWay
-from omero.cli import ProxyStringType
 
 
 def omero_roi_manager() -> Container:
