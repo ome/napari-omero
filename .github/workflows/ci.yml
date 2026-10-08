@@ -14,11 +14,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Tests run against the latest dependencies, like a fresh user install. 
+# Tests run against the latest dependencies, like a fresh user install.
 # Every platform is tested once per tool, because each tool gets
 # zeroc-ice/Qt binaries from a different place; the Python range is covered on
-# Linux only. 
-# uv: Glencoe zeroc-ice wheels (py3.10-3.12) 
+# Linux only.
+# uv: Glencoe zeroc-ice wheels (py3.10-3.12)
 # pixi: conda-forge (py3.13+).
 jobs:
   test-uv:

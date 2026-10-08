@@ -10,9 +10,6 @@ source = "vcs"
 only-include = ["src"]
 sources = ["src"]
 
-[tool.hatch.build.targets.sdist]
-exclude = [".python-version"]
-
 # https://peps.python.org/pep-0621/
 [project]
 name = "napari-omero"
@@ -77,6 +74,9 @@ test = [
     "pytest-regressions",
     "pywin32; sys_platform == 'win32'",
 ]
+# for pip (e.g. the README's conda + pip setup); keep the tools in sync with
+# [dependency-groups] dev below, which uv uses
+# TODO: remove in the future
 dev = [
     "napari-omero[all, test]",
     "ipython",
@@ -108,16 +108,19 @@ napari-omero = "napari_omero:napari.yaml"
 #   - pixi gets omero-py + zeroc-ice from conda-forge (any supported Python);
 #   - uv gets Glencoe Software's prebuilt wheels (Python 3.10-3.12 only).
 
-# PEP 735 dependency groups (uv installs the "dev" group by default)
+# PEP 735 dependency groups (uv installs the "dev" group by default).
 [dependency-groups]
 dev = [
     # listed directly so that the [tool.uv.sources] entry below applies
     "zeroc-ice==3.6.5; python_version < '3.13'",
     "napari-omero[test]",
     "napari[pyqt6]", # same Qt as PyPI napari[all] installs, with napari's Qt version exclusions
-    "prek", # runs the hooks in .pre-commit-config.yaml
-    "ruff",
+    "ipython",
     "mypy",
+    "pdbpp",
+    "prek", # runs the hooks in .pre-commit-config.yaml
+    "rich",
+    "ruff",
 ]
 
 [tool.uv]
@@ -129,8 +132,7 @@ environments = [
     "python_version >= '3.10' and python_version < '3.13' and sys_platform == 'linux' and platform_machine == 'x86_64'",
     "python_version >= '3.10' and python_version < '3.13' and sys_platform == 'linux' and platform_machine == 'aarch64'",
 ]
-# precompile at install: avoids zeroc-ice's SyntaxWarnings tripping pytest's
-# filterwarnings=error on first import, and speeds up napari start-up
+# precompile at install, to speed up napari start-up
 compile-bytecode = true
 
 [tool.uv.sources]
@@ -173,6 +175,9 @@ platforms = ["osx-arm64", "osx-64", "linux-64", "linux-aarch64", "win-64"]
 [tool.pixi.dependencies]
 python = ">=3.10"
 omero-py = "*"
+napari = "*"
+omero-rois = "*"
+omero-marshal = "*"
 pyside6 = "*" # same Qt binding the README recommends for conda-forge
 prek = "*" # runs the hooks in .pre-commit-config.yaml
 ruff = "*"
@@ -190,7 +195,7 @@ platforms = ["osx-arm64", "linux-64", "linux-aarch64", "win-64"] # no osx-64 zer
 dependencies = { python = "3.14.*" }
 
 [tool.pixi.environments]
-default = { features = ["test"], solve-group = "default" }
+default = ["test"]
 py313 = ["py313", "test"]
 py314 = ["py314", "test"]
 
@@ -266,8 +271,9 @@ filterwarnings = [
     # (napari/utils/events/evented_model.py); we can't fix it upstream from here.
     "ignore:`json_encoders` is deprecated:DeprecationWarning",
     # zeroc-ice's generated modules contain invalid escape sequences; Python
-    # warns when compiling them on first import (wording differs by version)
-    "ignore:.*invalid escape sequence:SyntaxWarning",
+    # warns when compiling them on first import (a SyntaxWarning on 3.12+,
+    # a DeprecationWarning before that, so no category is given)
+    "ignore:.*invalid escape sequence",
 ]
 
 

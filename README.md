@@ -4,7 +4,6 @@
 [![PyPI](https://img.shields.io/pypi/v/napari-omero.svg?color=green)](https://pypi.org/project/napari-omero)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-omero.svg?color=green)](https://python.org)
 [![CI](https://github.com/ome/napari-omero/actions/workflows/ci.yml/badge.svg)](https://github.com/ome/napari-omero/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/ome/napari-omero/branch/main/graph/badge.svg)](https://codecov.io/gh/ome/napari-omero)
 [![conda-forge](https://img.shields.io/conda/vn/conda-forge/napari-omero)](https://anaconda.org/conda-forge/napari-omero)
 
 This package provides interoperability between the
