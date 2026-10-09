@@ -34,7 +34,7 @@ jobs:
           - { os: windows-latest, python: "3.12" }
     steps:
       - uses: actions/checkout@v7
-      - uses: pyvista/setup-headless-display-action@v4
+      - uses: pyvista/setup-headless-display-action@v5
         with:
           qt: true
       - uses: astral-sh/setup-uv@v10.2.0
@@ -56,7 +56,7 @@ jobs:
           - { os: windows-latest, env: py314 }
     steps:
       - uses: actions/checkout@v7
-      - uses: pyvista/setup-headless-display-action@v4
+      - uses: pyvista/setup-headless-display-action@v5
         with:
           qt: true
       - uses: prefix-dev/setup-pixi@v0.10.2
