@@ -37,7 +37,7 @@ jobs:
       - uses: pyvista/setup-headless-display-action@v5
         with:
           qt: true
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           python-version: ${{ matrix.python }}
           enable-cache: true
@@ -89,7 +89,7 @@ jobs:
       - uses: pyvista/setup-headless-display-action@v5
         with:
           qt: true
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.3
         with:
           python-version: "3.12"
           enable-cache: true
@@ -112,7 +112,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: astral-sh/setup-uv@v10.3.3
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1
       - uses: softprops/action-gh-release@v3
